@@ -1,0 +1,31 @@
+experiment_name: my_experiment
+output_dir: ./experiments/my_experiment
+model:
+  model_name: deepseek-ai/DeepSeek-V3.2-Exp-SFT
+  max_length: 128000
+  use_flash_attention: true
+  torch_dtype: bfloat16
+  device_map: auto
+training:
+  learning_rate: 5.0e-07
+  batch_size: 1
+  gradient_accumulation_steps: 16
+  num_epochs: 1
+  warmup_steps: 100
+  max_grad_norm: 1.0
+  save_steps: 500
+  logging_steps: 10
+  grpo_group_size: 4
+  grpo_kl_coef: 0.1
+  alpha: 0.76
+  beta: 0.24
+data:
+  data_dir: ./data/processed
+  train_file: null
+  val_file: null
+  num_workers: 4
+  max_samples: null
+deepspeed:
+  enabled: false
+  config_file: null
+  zero_stage: 3

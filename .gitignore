@@ -1,0 +1,6 @@
+# papers
+*.pdf
+# virtual environment files
+deepseekmathv2_env/
+# Python cache
+*.pyc
