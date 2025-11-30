@@ -1,0 +1,188 @@
+# Generator Training Configuration
+# Configuration for training proof generation models with self-verification using GRPO
+
+# Model Configuration
+model:
+  name: "deepseek-math-7b-base"  # Base model to fine-tune
+  # For production, use: "deepseek-v3.2-exp-base"
+  checkpoint: null  # Path to checkpoint to resume from (null = train from scratch)
+  max_length: 16384  # Maximum sequence length (longer than verifier for proofs)
+  
+  # Initialize from verifier (recommended)
+  init_from_verifier: true  # Initialize generator from trained verifier
+  verifier_checkpoint: "checkpoints/verifier/best_checkpoint.pt"
+  
+# Verifier Configuration (for reward computation)
+verifier:
+  checkpoint: "checkpoints/verifier/best_checkpoint.pt"  # Path to trained verifier
+  freeze_weights: true  # Freeze verifier during generator training
+  
+  # Verifier inference settings
+  batch_size: 16  # Batch size for verifier inference
+  max_length: 8192  # Max length for verifier
+  
+# Dataset Configuration
+data:
+  train_dataset: "data/generation/train.jsonl"  # Training data path
+  val_dataset: "data/generation/val.jsonl"      # Validation data path
+  # Expected format: {"problem": "..."}
+  
+  # Data preprocessing
+  max_problems: null  # Limit number of problems (null = use all)
+  shuffle_seed: 42
+  
+# GRPO Configuration (from paper)
+grpo:
+  group_size: 4  # K samples per problem (paper uses 4)
+  kl_coef: 0.01  # KL divergence penalty coefficient
+  clip_range: 0.2  # PPO-style clipping range
+  
+# Reward Configuration (from paper Section 2.2)
+reward:
+  alpha_proof: 0.76  # Weight for proof quality (R_Y)
+  beta_self_eval: 0.24  # Weight for self-evaluation accuracy (R_Z)
+  
+  # Note: R = R_format * (α·R_Y + β·R_Z)
+  # R_format is binary (correct format or not)
+  # R_Y comes from verifier scoring the proof
+  # R_Z measures self-evaluation accuracy
+  
+# Training Configuration
+training:
+  # Optimization
+  learning_rate: 1.0e-6  # Learning rate (same as verifier)
+  batch_size: 4  # Number of problems per batch (smaller due to longer outputs)
+  gradient_accumulation_steps: 8  # Accumulate gradients over N steps
+  num_epochs: 3  # Number of training epochs
+  max_grad_norm: 1.0  # Gradient clipping threshold
+  weight_decay: 0.1  # Weight decay for AdamW
+  
+  # Learning rate schedule
+  warmup_steps: 100  # Number of warmup steps
+  scheduler_type: "cosine"  # cosine or linear
+  min_lr_ratio: 0.1  # Minimum LR as ratio of initial LR
+  
+  # Mixed precision
+  fp16: false  # Use FP16 training (for older GPUs)
+  bf16: true   # Use BF16 training (recommended for modern GPUs)
+  
+# Generation Configuration
+generation:
+  max_new_tokens: 4096  # Maximum tokens to generate (proof + self-analysis)
+  temperature: 0.8  # Sampling temperature
+  top_p: 0.95  # Nucleus sampling threshold
+  top_k: 50  # Top-k sampling
+  do_sample: true  # Enable sampling (false = greedy)
+  num_beams: 1  # Beam search (1 = no beam search)
+  
+  # Self-verification
+  include_self_verification: true  # Generate self-analysis
+  self_verification_prompt: "proof_with_self_eval"  # Prompt template name
+  
+# Refinement Configuration (Section 2.2.2)
+refinement:
+  enable_refinement: false  # Enable iterative refinement during training
+  max_iterations: 3  # Maximum refinement iterations
+  refinement_threshold: 0.8  # Only refine if self-score < threshold
+  
+  # Test-time refinement (not used during training)
+  test_time_refinement: true  # Enable at evaluation time
+  test_time_max_iterations: 8  # More iterations at test time
+  
+# Logging Configuration
+logging:
+  output_dir: "checkpoints/generator"  # Directory for checkpoints and logs
+  logging_steps: 10  # Log metrics every N steps
+  eval_steps: 500  # Evaluate every N steps
+  save_steps: 1000  # Save checkpoint every N steps
+  
+  # Metrics to track
+  track_metrics:
+    - loss
+    - reward
+    - policy_loss
+    - kl_div
+    - proof_quality  # R_Y component
+    - self_eval_accuracy  # R_Z component
+    - format_compliance
+  
+  # Weights & Biases (optional)
+  use_wandb: false  # Enable W&B logging
+  wandb_project: "deepseek-math-v2"
+  wandb_run_name: "generator-training"
+  
+  # Save example generations
+  save_generations: true  # Save example outputs during training
+  num_examples_to_save: 10  # Number of examples per eval
+  
+# Checkpointing Configuration
+checkpointing:
+  max_checkpoints: 3  # Keep only N best checkpoints
+  metric_for_best: "mean_reward"  # Metric to determine best checkpoint
+  save_optimizer_state: true  # Save optimizer state in checkpoints
+  save_total_limit: 5  # Total checkpoint limit (includes best + latest)
+  
+# Evaluation Configuration
+evaluation:
+  eval_batch_size: 8  # Batch size for evaluation
+  eval_max_samples: null  # Max samples to evaluate (null = all)
+  
+  # Metrics to compute during evaluation
+  compute_metrics:
+    - proof_correctness  # Fraction of correct proofs (score >= 0.5)
+    - perfect_proofs  # Fraction of perfect proofs (score = 1.0)
+    - mean_proof_score  # Average verifier score
+    - self_eval_mae  # MAE between self-score and verifier score
+    - refinement_improvement  # How much refinement helps
+  
+  # Verification settings for evaluation
+  verification_samples: 8  # Number of verifier samples per proof
+  consensus_threshold: 0.5  # Majority vote threshold
+  
+# Hardware Configuration
+hardware:
+  device: "cuda"  # cuda or cpu
+  gpu_ids: [0]  # GPU IDs to use (multi-GPU: [0, 1, 2, 3])
+  num_workers: 4  # Number of dataloader workers
+  pin_memory: true  # Pin memory for faster data transfer
+  
+  # DeepSpeed (recommended for large models)
+  use_deepspeed: false  # Enable DeepSpeed
+  deepspeed_config: "configs/deepspeed_config.json"
+  
+# Reproducibility
+seed: 42  # Random seed for reproducibility
+
+# Advanced Options
+advanced:
+  # Gradient checkpointing (saves memory at cost of speed)
+  gradient_checkpointing: true  # Usually needed for generator (longer sequences)
+  
+  # Compilation (PyTorch 2.0+)
+  torch_compile: false  # Enable torch.compile()
+  
+  # Debugging
+  debug_mode: false  # Enable debug logging
+  profile_training: false  # Profile training performance
+  
+  # Early stopping
+  early_stopping_patience: 5  # Stop if no improvement after N evals
+  early_stopping_threshold: 0.001  # Minimum improvement threshold
+  
+  # Curriculum learning (optional)
+  curriculum_learning: false  # Start with easier problems
+  curriculum_strategy: "difficulty"  # difficulty, length, or category
+  
+# Synergy Configuration (Section 2.3)
+synergy:
+  enable_synergy: false  # Enable verifier-generator synergy
+  
+  # Auto-labeling for verifier improvement
+  auto_label_new_proofs: false  # Auto-label generator outputs
+  auto_label_n: 64  # Number of verification samples for auto-labeling
+  auto_label_m: 32  # Number of meta-verification samples
+  auto_label_k: 8   # Threshold for valid analyses
+  
+  # Iterative training
+  num_synergy_iterations: 3  # Number of verifier-generator cycles
+  retrain_verifier_every: 1  # Retrain verifier every N generator epochs
