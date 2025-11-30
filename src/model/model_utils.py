@@ -6,6 +6,7 @@ src/model/model_utils.py
 
 Helper utilities for model operations in DeepSeekMath-V2.
 Handles generation configs, output formatting, and common utilities.
+Refer to docs/MODEL_UTILS.md for more details about this module.
 """
 
 from typing import Any, Dict, List, Optional

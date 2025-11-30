@@ -3,6 +3,7 @@ src/model/base_model.py
 
 Base model utilities for DeepSeekMath-V2.
 Handles loading, saving, and managing pre-trained models.
+Refer to the document docs/BASE_MODEL.md for more details about this module.
 """
 
 import os
