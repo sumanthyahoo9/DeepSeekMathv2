@@ -9,15 +9,10 @@ import os
 import json
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
-
-try:
-    import torch
-    import torch.distributed as dist
-    TORCH_AVAILABLE = True
-except ImportError:
-    TORCH_AVAILABLE = False
-    torch = None
-    dist = None
+# Pytorch imports
+import torch
+import torch.distributed as dist
+TORCH_AVAILABLE = True
 
 try:
     import deepspeed

@@ -10,13 +10,8 @@ from pathlib import Path
 import json
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
-
-try:
-    import torch
-    TORCH_AVAILABLE = True
-except ImportError:
-    TORCH_AVAILABLE = False
-    torch = None
+import torch
+TORCH_AVAILABLE = True
 
 
 # ============================================================================
